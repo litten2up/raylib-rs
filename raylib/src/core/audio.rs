@@ -8,7 +8,11 @@ use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
-make_thin_wrapper_lifetime!(Wave, ffi::Wave, RaylibAudio, ffi::UnloadWave);
+#[derive(Debug)]
+pub struct Wave<'a>(pub(crate) ffi::Wave, &'a RaylibAudio);
+
+impl_wrapper!(Wave<'a>, ffi::Wave, (ffi::UnloadWave), 0);
+deref_impl_wrapper!(Wave<'a>, ffi::Wave, (ffi::UnloadWave), 0);
 
 make_thin_wrapper_lifetime!(Sound, ffi::Sound, RaylibAudio, (ffi::UnloadSound), true);
 make_thin_wrapper_lifetime!(Music, ffi::Music, RaylibAudio, ffi::UnloadMusicStream);

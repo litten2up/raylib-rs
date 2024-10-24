@@ -1,0 +1,8 @@
+[package]
+name = "rres-rs"
+version = "1.2.0"
+edition = "2021"
+
+[dependencies]
+raylib = { version = "5.5.0", path = "../raylib" }
+rres-sys = {version = "1.2.0", path = "../rres-sys"}
