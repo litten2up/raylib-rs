@@ -13,7 +13,7 @@ pub struct ResourceChunkData(pub(crate) rres_sys::rresResourceChunkData);
 pub struct FontGlyphInfo(pub(crate) rres_sys::rresFontGlyphInfo);
 
 #[repr(u32)]
-enum ResourceDataType {
+pub enum ResourceDataType {
     DATA_NULL = rres_sys::rresResourceDataType::RRES_DATA_NULL as u32,
     DATA_RAW = rres_sys::rresResourceDataType::RRES_DATA_RAW as u32,
 
@@ -32,7 +32,7 @@ enum ResourceDataType {
     DATA_DIRECTORY = rres_sys::rresResourceDataType::RRES_DATA_DIRECTORY as u32,
 }
 #[repr(u32)]
-enum CompressionType {
+pub enum CompressionType {
     COMP_NONE = rres_sys::rresCompressionType::RRES_COMP_NONE as u32,
     COMP_RLE = rres_sys::rresCompressionType::RRES_COMP_RLE as u32,
     COMP_DEFLATE = rres_sys::rresCompressionType::RRES_COMP_DEFLATE as u32,
@@ -41,7 +41,7 @@ enum CompressionType {
     COMP_QOI = rres_sys::rresCompressionType::RRES_COMP_QOI as u32,
 }
 #[repr(u32)]
-enum EncryptionType {
+pub enum EncryptionType {
     CIPHER_NONE = rres_sys::rresEncryptionType::RRES_CIPHER_NONE as u32,
     CIPHER_XOR = rres_sys::rresEncryptionType::RRES_CIPHER_XOR as u32,
     CIPHER_DES = rres_sys::rresEncryptionType::RRES_CIPHER_DES as u32,
@@ -58,14 +58,14 @@ enum EncryptionType {
     CIPHER_XCHACHA20_POLY1305 = rres_sys::rresEncryptionType::RRES_CIPHER_XCHACHA20_POLY1305 as u32,
 }
 #[repr(u32)]
-enum ErrorType {
+pub enum ErrorType {
     SUCCESS = rres_sys::rresErrorType::RRES_SUCCESS as u32,
     ERROR_FILE_NOT_FOUND = rres_sys::rresErrorType::RRES_ERROR_FILE_NOT_FOUND as u32,
     ERROR_FILE_FORMAT = rres_sys::rresErrorType::RRES_ERROR_FILE_FORMAT as u32,
     ERROR_MEMORY_ALLOC = rres_sys::rresErrorType::RRES_ERROR_MEMORY_ALLOC as u32,
 }
 #[repr(u32)]
-enum TextEncoding {
+pub enum TextEncoding {
     TEXT_ENCODING_UNDEFINED = rres_sys::rresTextEncoding::RRES_TEXT_ENCODING_UNDEFINED as u32,
     TEXT_ENCODING_UTF8 = rres_sys::rresTextEncoding::RRES_TEXT_ENCODING_UTF8 as u32,
     TEXT_ENCODING_UTF8_BOM = rres_sys::rresTextEncoding::RRES_TEXT_ENCODING_UTF8_BOM as u32,
@@ -73,7 +73,7 @@ enum TextEncoding {
     TEXT_ENCODING_UTF16_BE = rres_sys::rresTextEncoding::RRES_TEXT_ENCODING_UTF16_BE as u32,
 }
 #[repr(u32)]
-enum CodeLang {
+pub enum CodeLang {
     CODE_LANG_UNDEFINED = rres_sys::rresCodeLang::RRES_CODE_LANG_UNDEFINED as u32,
     CODE_LANG_C = rres_sys::rresCodeLang::RRES_CODE_LANG_C as u32,
     CODE_LANG_CPP = rres_sys::rresCodeLang::RRES_CODE_LANG_CPP as u32,
@@ -89,7 +89,7 @@ enum CodeLang {
     CODE_LANG_GLSL = rres_sys::rresCodeLang::RRES_CODE_LANG_GLSL as u32,
 }
 #[repr(u32)]
-enum PixelFormat {
+pub enum PixelFormat {
     PIXELFORMAT_UNDEFINED = rres_sys::rresPixelFormat::RRES_PIXELFORMAT_UNDEFINED as u32,
     PIXELFORMAT_UNCOMP_GRAYSCALE =
         rres_sys::rresPixelFormat::RRES_PIXELFORMAT_UNCOMP_GRAYSCALE as u32,
@@ -124,7 +124,7 @@ enum PixelFormat {
         rres_sys::rresPixelFormat::RRES_PIXELFORMAT_COMP_ASTC_8x8_RGBA as u32,
 }
 #[repr(u32)]
-enum VertexAttribute {
+pub enum VertexAttribute {
     VERTEX_ATTRIBUTE_POSITION =
         rres_sys::rresVertexAttribute::RRES_VERTEX_ATTRIBUTE_POSITION as u32,
     VERTEX_ATTRIBUTE_TEXCOORD1 =
@@ -141,7 +141,7 @@ enum VertexAttribute {
     VERTEX_ATTRIBUTE_INDEX = rres_sys::rresVertexAttribute::RRES_VERTEX_ATTRIBUTE_INDEX as u32,
 }
 #[repr(u32)]
-enum VertexFormat {
+pub enum VertexFormat {
     VERTEX_FORMAT_UBYTE = rres_sys::rresVertexFormat::RRES_VERTEX_FORMAT_UBYTE as u32,
     VERTEX_FORMAT_BYTE = rres_sys::rresVertexFormat::RRES_VERTEX_FORMAT_BYTE as u32,
     VERTEX_FORMAT_USHORT = rres_sys::rresVertexFormat::RRES_VERTEX_FORMAT_USHORT as u32,
@@ -152,7 +152,7 @@ enum VertexFormat {
     VERTEX_FORMAT_FLOAT = rres_sys::rresVertexFormat::RRES_VERTEX_FORMAT_FLOAT as u32,
 }
 #[repr(u32)]
-enum FontStyle {
+pub enum FontStyle {
     FONT_STYLE_UNDEFINED = rres_sys::rresFontStyle::RRES_FONT_STYLE_UNDEFINED as u32,
     FONT_STYLE_REGULAR = rres_sys::rresFontStyle::RRES_FONT_STYLE_REGULAR as u32,
     FONT_STYLE_BOLD = rres_sys::rresFontStyle::RRES_FONT_STYLE_BOLD as u32,
@@ -285,8 +285,8 @@ impl DerefMut for CentralDir {
         &mut self.0
     }
 }
-pub fn get_data_type(four_cc: [u8; 4]) -> u32 {
-    unsafe { rres_sys::rresGetDataType(four_cc.as_ptr()) }
+pub fn get_data_type(four_cc: [u8; 4]) -> ResourceDataType {
+    unsafe { std::mem::transmute(rres_sys::rresGetDataType(four_cc.as_ptr())) }
 }
 
 pub fn compute_crc32(data: &[u8]) -> u32 {
@@ -299,7 +299,7 @@ pub fn set_cipher_password(pass: &str) {
     };
 }
 
-pub fn get_cipher_password<'a>() -> &'a str {
+pub fn get_cipher_password() -> &'static str {
     unsafe {
         CStr::from_ptr(rres_sys::rresGetCipherPassword())
             .to_str()
