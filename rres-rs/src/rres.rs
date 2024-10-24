@@ -1,8 +1,11 @@
 #![allow(non_camel_case_types)]
 
 use std::{
+    error::Error,
     ffi::{CStr, CString},
+    fmt::Display,
     ops::{Deref, DerefMut},
+    sync::Mutex,
 };
 
 pub struct ResourceChunk(pub(crate) rres_sys::rresResourceChunk);
@@ -58,12 +61,27 @@ pub enum EncryptionType {
     CIPHER_XCHACHA20_POLY1305 = rres_sys::rresEncryptionType::RRES_CIPHER_XCHACHA20_POLY1305 as u32,
 }
 #[repr(u32)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ErrorType {
     SUCCESS = rres_sys::rresErrorType::RRES_SUCCESS as u32,
     ERROR_FILE_NOT_FOUND = rres_sys::rresErrorType::RRES_ERROR_FILE_NOT_FOUND as u32,
     ERROR_FILE_FORMAT = rres_sys::rresErrorType::RRES_ERROR_FILE_FORMAT as u32,
     ERROR_MEMORY_ALLOC = rres_sys::rresErrorType::RRES_ERROR_MEMORY_ALLOC as u32,
 }
+
+impl Display for ErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorType::SUCCESS => f.write_str("Success"),
+            ErrorType::ERROR_FILE_NOT_FOUND => f.write_str("File not found"),
+            ErrorType::ERROR_FILE_FORMAT => f.write_str("File format error"),
+            ErrorType::ERROR_MEMORY_ALLOC => f.write_str("Memory allocation error"),
+        }
+    }
+}
+
+impl Error for ErrorType {}
+
 #[repr(u32)]
 pub enum TextEncoding {
     TEXT_ENCODING_UNDEFINED = rres_sys::rresTextEncoding::RRES_TEXT_ENCODING_UNDEFINED as u32,
@@ -160,6 +178,7 @@ pub enum FontStyle {
 }
 
 impl ResourceChunk {
+    /// Load one resource chunk for provided id
     pub fn new(file_name: &str, id: i32) -> Self {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
@@ -189,6 +208,7 @@ impl DerefMut for ResourceChunk {
 }
 
 impl ResourceMulti {
+    /// Load resource for provided id (multiple resource chunks)
     pub fn new(file_name: &str, id: i32) -> Self {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
@@ -217,6 +237,7 @@ impl DerefMut for ResourceMulti {
     }
 }
 impl ResourceChunkInfo {
+    /// Load resource chunk info for provided id
     pub fn new(file_name: &str, id: i32) -> Self {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
@@ -224,6 +245,7 @@ impl ResourceChunkInfo {
         };
         Self(r)
     }
+    /// Load all resource chunks info
     pub fn all(file_name: &str) -> Vec<Self> {
         let mut i: u32 = 0;
         let r = unsafe {
@@ -251,6 +273,7 @@ impl DerefMut for ResourceChunkInfo {
     }
 }
 impl CentralDir {
+    /// Load central directory resource chunk from file
     pub fn new(file_name: &str) -> Self {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
@@ -260,6 +283,8 @@ impl CentralDir {
         Self(r)
     }
 
+    /// Get resource identifier from filename
+    /// WARNING: It requires the central directory previously loaded
     pub fn get_resource_id(&self, file_name: &str) -> i32 {
         unsafe {
             let cstr = CString::new(file_name).unwrap();
@@ -285,24 +310,36 @@ impl DerefMut for CentralDir {
         &mut self.0
     }
 }
+
+/// Get rresResourceDataType from FourCC code
 pub fn get_data_type(four_cc: [u8; 4]) -> ResourceDataType {
     unsafe { std::mem::transmute(rres_sys::rresGetDataType(four_cc.as_ptr())) }
 }
 
+/// Compute CRC32 hash
+/// NOTE: CRC32 is used as rres id, generated from original filename
 pub fn compute_crc32(data: &[u8]) -> u32 {
     unsafe { rres_sys::rresComputeCRC32(data.as_ptr(), data.len() as i32) }
 }
-pub fn set_cipher_password(pass: &str) {
-    unsafe {
-        let cstr = CString::new(pass).unwrap();
-        rres_sys::rresSetCipherPassword(cstr.as_ptr())
-    };
-}
 
+static CIPHER_MUTEX: Mutex<()> = Mutex::new(());
+
+/// Get password to be used on data decryption
+/// Rust note: this function is made thread safe thanks to an internal Mutex.
 pub fn get_cipher_password() -> &'static str {
+    let _lock = CIPHER_MUTEX.lock().unwrap();
     unsafe {
         CStr::from_ptr(rres_sys::rresGetCipherPassword())
             .to_str()
             .unwrap()
     }
+}
+
+/// Set password to be used on data decryption
+/// Rust note: this function is made thread safe thanks to an internal Mutex.
+pub fn set_cipher_password(pass: &str) {
+    unsafe {
+        let cstr = CString::new(pass).unwrap();
+        rres_sys::rresSetCipherPassword(cstr.as_ptr())
+    };
 }
