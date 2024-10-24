@@ -8,6 +8,8 @@ use std::{
     sync::Mutex,
 };
 
+use crate::is_zero;
+
 pub struct ResourceChunk(pub(crate) rres_sys::rresResourceChunk);
 pub struct ResourceMulti(pub(crate) rres_sys::rresResourceMulti);
 pub struct ResourceChunkInfo(pub(crate) rres_sys::rresResourceChunkInfo);
@@ -179,12 +181,17 @@ pub enum FontStyle {
 
 impl ResourceChunk {
     /// Load one resource chunk for provided id
-    pub fn new(file_name: &str, id: i32) -> Self {
+    pub fn new(file_name: &str, id: i32) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceChunk(cstr.as_ptr(), id)
         };
-        Self(r)
+
+        if is_zero(&r) {
+            None
+        } else {
+            Some(Self(r))
+        }
     }
 }
 
@@ -209,13 +216,17 @@ impl DerefMut for ResourceChunk {
 
 impl ResourceMulti {
     /// Load resource for provided id (multiple resource chunks)
-    pub fn new(file_name: &str, id: i32) -> Self {
+    pub fn new(file_name: &str, id: i32) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceMulti(cstr.as_ptr(), id)
         };
 
-        Self(r)
+        if is_zero(&r) {
+            None
+        } else {
+            Some(Self(r))
+        }
     }
 }
 
@@ -238,12 +249,16 @@ impl DerefMut for ResourceMulti {
 }
 impl ResourceChunkInfo {
     /// Load resource chunk info for provided id
-    pub fn new(file_name: &str, id: i32) -> Self {
+    pub fn new(file_name: &str, id: i32) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceChunkInfo(cstr.as_ptr(), id)
         };
-        Self(r)
+        if is_zero(&r) {
+            None
+        } else {
+            Some(Self(r))
+        }
     }
     /// Load all resource chunks info
     pub fn all(file_name: &str) -> Vec<Self> {
@@ -252,11 +267,15 @@ impl ResourceChunkInfo {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceChunkInfoAll(cstr.as_ptr(), &mut i)
         };
-        unsafe {
-            std::slice::from_raw_parts_mut(r, i as usize)
-                .iter()
-                .map(|f| Self(*f))
-                .collect::<Vec<_>>()
+        if !r.is_null() {
+            unsafe {
+                std::slice::from_raw_parts_mut(r, i as usize)
+                    .iter()
+                    .map(|f| Self(*f))
+                    .collect::<Vec<_>>()
+            }
+        } else {
+            return Vec::new();
         }
     }
 }
@@ -274,13 +293,17 @@ impl DerefMut for ResourceChunkInfo {
 }
 impl CentralDir {
     /// Load central directory resource chunk from file
-    pub fn new(file_name: &str) -> Self {
+    pub fn new(file_name: &str) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadCentralDirectory(cstr.as_ptr())
         };
 
-        Self(r)
+        if is_zero(&r) {
+            None
+        } else {
+            Some(Self(r))
+        }
     }
 
     /// Get resource identifier from filename

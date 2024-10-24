@@ -1,6 +1,6 @@
 use std::ffi::{CStr, CString};
 
-use crate::{ErrorType, ResourceChunk, ResourceMulti};
+use crate::{is_zero, ErrorType, ResourceChunk, ResourceMulti};
 use raylib::{
     audio::{RaylibAudio, Wave},
     models::Mesh,
@@ -8,14 +8,6 @@ use raylib::{
     texture::Image,
     RaylibHandle,
 };
-
-/// Check if a struct is zeroed out
-fn is_zero<T: Sized>(p: &T) -> bool {
-    unsafe {
-        ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())[0]
-            == 0
-    }
-}
 
 pub trait RRESImpl {
     /// Load raw data from rres resource
@@ -67,12 +59,9 @@ pub trait RRESImpl {
     /// Unpack compressed/encrypted data from resource chunk
     /// In case data could not be processed, it is just copied in chunk.data.raw for processing here
     /// NOTE 2: Data corruption CRC32 check has already been performed by rresLoadResourceMulti() on rres.h
-    fn unpack_resource_chunk(&self, chunk: &mut [ResourceChunk]) -> Result<(), ErrorType> {
-        let j: ErrorType = unsafe {
-            std::mem::transmute(rres_sys::UnpackResourceChunk(
-                chunk.iter().map(|f| f.0).collect::<Vec<_>>().as_mut_ptr(),
-            ))
-        };
+    fn unpack_resource_chunk(&self, chunk: &mut ResourceChunk) -> Result<(), ErrorType> {
+        let j: ErrorType =
+            unsafe { std::mem::transmute(rres_sys::UnpackResourceChunk(&mut chunk.0)) };
         if j == ErrorType::SUCCESS {
             return Ok(());
         } else {
