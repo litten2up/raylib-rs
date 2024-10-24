@@ -1,5 +1,9 @@
-mod raylib;
 mod rres;
 
-pub use raylib::*;
+#[cfg(feature = "raylib")]
+mod raylib;
+
 pub use rres::*;
+
+#[cfg(feature = "raylib")]
+pub use raylib::*;

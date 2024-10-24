@@ -9,15 +9,12 @@ use raylib::{
     RaylibHandle,
 };
 
+/// Check if a struct is zeroed out
 fn is_zero<T: Sized>(p: &T) -> bool {
-    let buf = unsafe {
-        ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())
-    };
-    let (prefix, aligned, suffix) = unsafe { buf.align_to::<u128>() };
-
-    prefix.iter().all(|&x| x == 0)
-        && suffix.iter().all(|&x| x == 0)
-        && aligned.iter().all(|&x| x == 0)
+    unsafe {
+        ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())[0]
+            == 0
+    }
 }
 
 pub trait RRESImpl {
@@ -97,9 +94,17 @@ impl<'a> RRESImpl for RaylibHandle {}
 
 pub trait RRESAudio<'a>: AsRef<RaylibAudio> {
     /// Load Wave data from rres resource
-    fn load_wave_from_resource(&self, chunk: ResourceChunk) -> Wave<'a> {
+    fn load_wave_from_resource(&self, chunk: ResourceChunk) -> Option<Wave<'a>> {
         let raudio: &RaylibAudio = self.as_ref();
 
-        unsafe { std::mem::transmute((rres_sys::LoadWaveFromResource(chunk.0), raudio)) }
+        let d = unsafe { rres_sys::LoadWaveFromResource(chunk.0) };
+
+        if is_zero(&d) {
+            return None;
+        } else {
+            return Some(unsafe {
+                std::mem::transmute((rres_sys::LoadWaveFromResource(chunk.0), raudio))
+            });
+        }
     }
 }
