@@ -116,6 +116,8 @@ pub trait RRESAudio<'a> {
     fn load_wave_from_resource(&self, chunk: ResourceChunk) -> Option<Wave<'a>>;
 }
 
+// In order to construct a Wave from outside the crate, we have our own identical type that we construct
+// and transmute.
 #[allow(dead_code)]
 struct IdenticalWave<'a>(raylib::ffi::Wave, &'a RaylibAudio);
 
