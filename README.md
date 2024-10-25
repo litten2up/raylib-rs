@@ -40,6 +40,7 @@ Most development happens over at: https://github.com/raylib-rs/raylib-rs
 | rgui   | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | ❔                 | :x:     |
 | physac | :construction:     | :construction:     | :construction:     | ❔                 | :x:     |
 | rlgl   | :heavy_check_mark: | :x:                | :x:                | ❔                 | :x:     |
+| rres   | ❔                 | :heavy_check_mark: | :heavy_check_mark: | ❔                 | :x:     |
 
 ## Build Dependencies
 
