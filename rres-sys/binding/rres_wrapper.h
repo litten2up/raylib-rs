@@ -3,9 +3,9 @@
 #define RAYGUI_SUPPORT_ICONS
 #define RLGL_IMPLEMENTATION
 #define RLGL_SUPPORT_TRACELOG
-#if defined(_WIN32)
-#include "rlgl.h"
-#endif
+#define RRES_SUPPORT_COMPRESSION_LZ4
+#define RRES_SUPPORT_ENCRYPTION_AES
+#define RRES_SUPPORT_ENCRYPTION_XCHACHA20
 #include "raylib.h"
 #include "rres-raylib.h"
 #include "rres.h"

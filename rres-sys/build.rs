@@ -25,6 +25,9 @@ fn gen_rres() {
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("cargo:rerun-if-changed=bindings/*.c");
+    println!("cargo:rerun-if-changed=bindings/*.h");
+    println!("cargo:rerun-if-changed=bindings/*.cpp");
     let builder = bindgen::builder()
         .header("binding/binding.h")
         .rustified_enum(".+")
