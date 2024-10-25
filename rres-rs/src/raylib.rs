@@ -50,6 +50,7 @@ pub trait RRESImpl {
     }
 
     /// Load text data from rres resource
+    ///
     /// NOTE: Text must be NULL terminated
     fn load_text_from_resource<'a>(&self, chunk: ResourceChunk) -> &'a str {
         let d = unsafe { rres_sys::LoadTextFromResource(chunk.0) };
@@ -77,6 +78,7 @@ pub trait RRESImpl {
     }
 
     /// Load Mesh data from rres resource
+    ///
     /// NOTE: We try to load vertex data following raylib structure constraints, in case data does not fit raylib Mesh structure, it is not loaded
     fn load_mesh_from_resource(&self, multi: ResourceMulti) -> Option<Mesh> {
         let d = unsafe { rres_sys::LoadMeshFromResource(multi.0) };
@@ -87,9 +89,11 @@ pub trait RRESImpl {
         }
     }
 
-    /// Unpack compressed/encrypted data from resource chunk
-    /// In case data could not be processed, it is just copied in chunk.data.raw for processing here
-    /// NOTE 2: Data corruption CRC32 check has already been performed by rresLoadResourceMulti() on rres.h
+    /// Unpack compressed/encrypted data from resource chunk.
+    ///
+    /// In case data could not be processed, it is just copied in chunk.data.raw for processing here.
+    ///
+    /// NOTE: Data corruption CRC32 check has already been performed by rresLoadResourceMulti() on rres.h
     fn unpack_resource_chunk(&self, chunk: &mut ResourceChunk) -> Result<(), UnpackError> {
         let j = unsafe { rres_sys::UnpackResourceChunk(&mut chunk.0) };
         if j == 0 {
@@ -100,6 +104,7 @@ pub trait RRESImpl {
     }
 
     /// Set base directory for externally linked data
+    ///
     /// NOTE: When resource chunk contains an external link (FourCC: LINK, Type: RRES_DATA_LINK), a base directory is required to be prepended to link path. If not provided, the application path is prepended to link by default
     fn set_base_directory(&self, base_dir: &str) {
         unsafe {

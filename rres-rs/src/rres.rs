@@ -378,6 +378,7 @@ impl CentralDir {
     }
 
     /// Get resource identifier from filename
+    ///
     /// WARNING: It requires the central directory previously loaded
     pub fn get_resource_id(&self, file_name: &str) -> Option<i32> {
         unsafe {
@@ -412,6 +413,7 @@ impl Drop for CentralDir {
 }
 
 /// Compute CRC32 hash
+///
 /// NOTE: CRC32 is used as rres id, generated from original filename
 pub fn compute_crc32(data: &[u8]) -> u32 {
     unsafe { rres_sys::rresComputeCRC32(data.as_ptr(), data.len() as i32) }
@@ -419,7 +421,9 @@ pub fn compute_crc32(data: &[u8]) -> u32 {
 
 static CIPHER_MUTEX: Mutex<()> = Mutex::new(());
 
-/// Get password to be used on data decryption
+///
+/// Get password to be used on data decryption.
+///
 /// Rust note: this function is made thread safe thanks to an internal Mutex.
 pub fn get_cipher_password() -> &'static str {
     let _lock = CIPHER_MUTEX.lock().unwrap();
@@ -430,7 +434,9 @@ pub fn get_cipher_password() -> &'static str {
     }
 }
 
-/// Set password to be used on data decryption
+///
+/// Set password to be used on data decryption.
+///
 /// Rust note: this function is made thread safe thanks to an internal Mutex.
 pub fn set_cipher_password(pass: &str) {
     let _lock = CIPHER_MUTEX.lock().unwrap();
