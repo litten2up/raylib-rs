@@ -1,4 +1,8 @@
-use std::ffi::{CStr, CString};
+use std::{
+    error::Error,
+    ffi::{CStr, CString},
+    fmt::{Debug, Display},
+};
 
 use crate::{is_zero, ErrorType, ResourceChunk, ResourceMulti};
 use raylib::{
@@ -8,6 +12,33 @@ use raylib::{
     texture::Image,
     RaylibHandle,
 };
+
+pub struct UnpackError(i32);
+impl Debug for UnpackError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            0 => f.write_str("No error, decompression/decryption successful"),
+            1 => f.write_str("Encryption algorithm not supported"),
+            2 => f.write_str("Invalid password on decryption"),
+            3 => f.write_str("Compression algorithm not supported"),
+            4 => f.write_str("Error on data decompression"),
+            _ => f.write_str("Unknown error"),
+        }
+    }
+}
+impl Display for UnpackError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            0 => f.write_str("No error, decompression/decryption successful"),
+            1 => f.write_str("Encryption algorithm not supported"),
+            2 => f.write_str("Invalid password on decryption"),
+            3 => f.write_str("Compression algorithm not supported"),
+            4 => f.write_str("Error on data decompression"),
+            _ => f.write_str("Unknown error"),
+        }
+    }
+}
+impl Error for UnpackError {}
 
 pub trait RRESImpl {
     /// Load raw data from rres resource
@@ -59,13 +90,12 @@ pub trait RRESImpl {
     /// Unpack compressed/encrypted data from resource chunk
     /// In case data could not be processed, it is just copied in chunk.data.raw for processing here
     /// NOTE 2: Data corruption CRC32 check has already been performed by rresLoadResourceMulti() on rres.h
-    fn unpack_resource_chunk(&self, chunk: &mut ResourceChunk) -> Result<(), ErrorType> {
-        let j: ErrorType =
-            unsafe { std::mem::transmute(rres_sys::UnpackResourceChunk(&mut chunk.0)) };
-        if j == ErrorType::SUCCESS {
+    fn unpack_resource_chunk(&self, chunk: &mut ResourceChunk) -> Result<(), UnpackError> {
+        let j = unsafe { rres_sys::UnpackResourceChunk(&mut chunk.0) };
+        if j == 0 {
             return Ok(());
         } else {
-            return Err(j);
+            return Err(UnpackError(j));
         }
     }
 
@@ -81,18 +111,23 @@ pub trait RRESImpl {
 
 impl<'a> RRESImpl for RaylibHandle {}
 
-pub trait RRESAudio<'a>: AsRef<RaylibAudio> {
+pub trait RRESAudio<'a> {
+    /// Load Wave data from rres resource
+    fn load_wave_from_resource(&self, chunk: ResourceChunk) -> Option<Wave<'a>>;
+}
+
+pub struct IdenticalWave<'a>(pub(crate) raylib::ffi::Wave, &'a RaylibAudio);
+
+impl<'a> RRESAudio<'a> for RaylibAudio {
     /// Load Wave data from rres resource
     fn load_wave_from_resource(&self, chunk: ResourceChunk) -> Option<Wave<'a>> {
-        let raudio: &RaylibAudio = self.as_ref();
-
         let d = unsafe { rres_sys::LoadWaveFromResource(chunk.0) };
 
         if is_zero(&d) {
             return None;
         } else {
             return Some(unsafe {
-                std::mem::transmute((rres_sys::LoadWaveFromResource(chunk.0), raudio))
+                std::mem::transmute(IdenticalWave(rres_sys::LoadWaveFromResource(chunk.0), self))
             });
         }
     }

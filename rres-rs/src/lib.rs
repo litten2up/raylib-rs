@@ -15,3 +15,5 @@ pub(crate) fn is_zero<T: Sized>(p: &T) -> bool {
             == 0
     }
 }
+
+pub use rres_sys as ffi;

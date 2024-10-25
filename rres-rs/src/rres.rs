@@ -10,13 +10,6 @@ use std::{
 
 use crate::is_zero;
 
-pub struct ResourceChunk(pub(crate) rres_sys::rresResourceChunk);
-pub struct ResourceMulti(pub(crate) rres_sys::rresResourceMulti);
-pub struct ResourceChunkInfo(pub(crate) rres_sys::rresResourceChunkInfo);
-pub struct CentralDir(pub(crate) rres_sys::rresCentralDir);
-pub struct ResourceChunkData(pub(crate) rres_sys::rresResourceChunkData);
-pub struct FontGlyphInfo(pub(crate) rres_sys::rresFontGlyphInfo);
-
 #[repr(u32)]
 pub enum ResourceDataType {
     DATA_NULL = rres_sys::rresResourceDataType::RRES_DATA_NULL as u32,
@@ -35,6 +28,13 @@ pub enum ResourceDataType {
     DATA_LINK = rres_sys::rresResourceDataType::RRES_DATA_LINK as u32,
 
     DATA_DIRECTORY = rres_sys::rresResourceDataType::RRES_DATA_DIRECTORY as u32,
+}
+
+impl ResourceDataType {
+    /// Get rresResourceDataType from FourCC code
+    pub fn get_data_type(four_cc: [u8; 4]) -> Self {
+        unsafe { std::mem::transmute(rres_sys::rresGetDataType(four_cc.as_ptr())) }
+    }
 }
 #[repr(u32)]
 pub enum CompressionType {
@@ -179,9 +179,58 @@ pub enum FontStyle {
     FONT_STYLE_ITALIC = rres_sys::rresFontStyle::RRES_FONT_STYLE_ITALIC as u32,
 }
 
+pub struct ResourceChunk(pub(crate) rres_sys::rresResourceChunk);
+pub struct ResourceMulti(pub(crate) rres_sys::rresResourceMulti);
+pub struct ResourceChunkInfo(pub(crate) rres_sys::rresResourceChunkInfo);
+pub struct CentralDir(pub(crate) rres_sys::rresCentralDir);
+pub struct ResourceChunkData(pub(crate) rres_sys::rresResourceChunkData);
+pub struct FontGlyphInfo(pub(crate) rres_sys::rresFontGlyphInfo);
+
+pub struct DirEntry(pub(crate) rres_sys::rresDirEntry);
+
+pub type FileHeader = rres_sys::rresFileHeader;
+
+impl DirEntry {
+    pub unsafe fn from_raw(inner: rres_sys::rresDirEntry) -> Self {
+        Self(inner)
+    }
+    /// Resource id
+    pub fn id(&self) -> u32 {
+        self.0.id
+    }
+    /// Resource global offset in file
+    pub fn offset(&self) -> u32 {
+        self.0.offset
+    }
+
+    /// Resource fileName size (NULL terminator and 4-byte alignment padding considered)
+    pub fn file_name_size(&self) -> u32 {
+        self.0.fileNameSize
+    }
+
+    /// Resource original fileName (NULL terminated and padded to 4-byte alignment)
+    pub fn filename(&self) -> String {
+        let r = self
+            .0
+            .fileName
+            .iter()
+            .map(|f| *f as u8)
+            .collect::<Vec<u8>>();
+        CStr::from_bytes_until_nul(&r)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
+}
+
 impl ResourceChunk {
+    pub unsafe fn from_raw(inner: rres_sys::rresResourceChunk) -> Self {
+        Self(inner)
+    }
+
     /// Load one resource chunk for provided id
-    pub fn new(file_name: &str, id: i32) -> Option<Self> {
+    pub fn load(file_name: &str, id: i32) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceChunk(cstr.as_ptr(), id)
@@ -201,22 +250,31 @@ impl Drop for ResourceChunk {
     }
 }
 
-impl Deref for ResourceChunk {
-    type Target = rres_sys::rresResourceChunk;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl ResourceChunkData {
+    pub unsafe fn from_raw(inner: rres_sys::rresResourceChunkData) -> Self {
+        Self(inner)
     }
-}
-impl DerefMut for ResourceChunk {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn prop_count(&self) -> u32 {
+        self.0.propCount
+    }
+    pub fn props(&self) -> &[u32] {
+        assert!(!self.0.props.is_null());
+        assert!(self.0.props.is_aligned());
+        unsafe { std::slice::from_raw_parts(self.0.props, self.0.propCount as usize) }
+    }
+    pub fn props_mut(&mut self) -> &mut [u32] {
+        assert!(!self.0.props.is_null());
+        assert!(self.0.props.is_aligned());
+        unsafe { std::slice::from_raw_parts_mut(self.0.props, self.0.propCount as usize) }
     }
 }
 
 impl ResourceMulti {
+    pub unsafe fn from_raw(inner: rres_sys::rresResourceMulti) -> Self {
+        Self(inner)
+    }
     /// Load resource for provided id (multiple resource chunks)
-    pub fn new(file_name: &str, id: i32) -> Option<Self> {
+    pub fn load(file_name: &str, id: i32) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceMulti(cstr.as_ptr(), id)
@@ -228,6 +286,19 @@ impl ResourceMulti {
             Some(Self(r))
         }
     }
+
+    pub fn count(&self) -> u32 {
+        self.0.count
+    }
+
+    pub fn chunks(&self) -> Vec<ResourceChunk> {
+        assert!(!self.0.chunks.is_null());
+        assert!(self.0.chunks.is_aligned());
+        unsafe { std::slice::from_raw_parts(self.0.chunks, self.0.count as usize) }
+            .iter()
+            .map(|f| ResourceChunk(*f))
+            .collect::<Vec<_>>()
+    }
 }
 
 impl Drop for ResourceMulti {
@@ -235,21 +306,16 @@ impl Drop for ResourceMulti {
         unsafe { rres_sys::rresUnloadResourceMulti(self.0) }
     }
 }
-impl Deref for ResourceMulti {
-    type Target = rres_sys::rresResourceMulti;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for ResourceMulti {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 impl ResourceChunkInfo {
+    pub unsafe fn from_raw(inner: rres_sys::rresResourceChunkInfo) -> Self {
+        Self(inner)
+    }
+    /// Get the type of the chunk
+    pub fn get_type(&self) -> ResourceDataType {
+        ResourceDataType::get_data_type(self.type_)
+    }
     /// Load resource chunk info for provided id
-    pub fn new(file_name: &str, id: i32) -> Option<Self> {
+    pub fn load(file_name: &str, id: i32) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceChunkInfo(cstr.as_ptr(), id)
@@ -261,13 +327,15 @@ impl ResourceChunkInfo {
         }
     }
     /// Load all resource chunks info
-    pub fn all(file_name: &str) -> Vec<Self> {
+    pub fn load_all(file_name: &str) -> Vec<Self> {
         let mut i: u32 = 0;
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadResourceChunkInfoAll(cstr.as_ptr(), &mut i)
         };
         if !r.is_null() {
+            assert!(!r.is_null());
+            assert!(r.is_aligned());
             unsafe {
                 std::slice::from_raw_parts_mut(r, i as usize)
                     .iter()
@@ -292,8 +360,11 @@ impl DerefMut for ResourceChunkInfo {
     }
 }
 impl CentralDir {
+    pub unsafe fn from_raw(inner: rres_sys::rresCentralDir) -> Self {
+        Self(inner)
+    }
     /// Load central directory resource chunk from file
-    pub fn new(file_name: &str) -> Option<Self> {
+    pub fn load(file_name: &str) -> Option<Self> {
         let r = unsafe {
             let cstr = CString::new(file_name).unwrap();
             rres_sys::rresLoadCentralDirectory(cstr.as_ptr())
@@ -308,11 +379,29 @@ impl CentralDir {
 
     /// Get resource identifier from filename
     /// WARNING: It requires the central directory previously loaded
-    pub fn get_resource_id(&self, file_name: &str) -> i32 {
+    pub fn get_resource_id(&self, file_name: &str) -> Option<i32> {
         unsafe {
             let cstr = CString::new(file_name).unwrap();
-            rres_sys::rresGetResourceId(self.0, cstr.as_ptr())
+            let id = rres_sys::rresGetResourceId(self.0, cstr.as_ptr());
+            if id == 0 {
+                None
+            } else {
+                Some(id)
+            }
         }
+    }
+
+    pub fn count(&self) -> u32 {
+        self.0.count
+    }
+
+    pub fn entries(&self) -> Vec<DirEntry> {
+        assert!(!self.0.entries.is_null());
+        assert!(self.0.entries.is_aligned());
+        unsafe { std::slice::from_raw_parts(self.0.entries, self.0.count as usize) }
+            .iter()
+            .map(|f| DirEntry(*f))
+            .collect::<Vec<_>>()
     }
 }
 
@@ -320,23 +409,6 @@ impl Drop for CentralDir {
     fn drop(&mut self) {
         unsafe { rres_sys::rresUnloadCentralDirectory(self.0) }
     }
-}
-impl Deref for CentralDir {
-    type Target = rres_sys::rresCentralDir;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for CentralDir {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// Get rresResourceDataType from FourCC code
-pub fn get_data_type(four_cc: [u8; 4]) -> ResourceDataType {
-    unsafe { std::mem::transmute(rres_sys::rresGetDataType(four_cc.as_ptr())) }
 }
 
 /// Compute CRC32 hash
@@ -361,6 +433,7 @@ pub fn get_cipher_password() -> &'static str {
 /// Set password to be used on data decryption
 /// Rust note: this function is made thread safe thanks to an internal Mutex.
 pub fn set_cipher_password(pass: &str) {
+    let _lock = CIPHER_MUTEX.lock().unwrap();
     unsafe {
         let cstr = CString::new(pass).unwrap();
         rres_sys::rresSetCipherPassword(cstr.as_ptr())
