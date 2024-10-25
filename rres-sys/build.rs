@@ -1,27 +1,24 @@
 use std::{env, path::PathBuf};
 
 fn gen_rres() {
+    let mut comp = &mut cc::Build::new();
     // Compile the code and link with cc crate
     #[cfg(target_os = "windows")]
     {
-        cc::Build::new()
-            .files(vec!["binding/rres_wrapper.cpp"])
-            .include("binding")
-            .warnings(false)
-            // .flag("-std=c99")
-            .extra_warnings(false)
-            .compile("rres");
+        comp = comp.files(vec!["binding/rres_wrapper.cpp"]);
     }
     #[cfg(not(target_os = "windows"))]
     {
-        cc::Build::new()
-            .files(vec!["binding/rres_wrapper.c"])
-            .include("binding")
-            .warnings(false)
-            // .flag("-std=c99")
-            .extra_warnings(false)
-            .compile("rres");
+        comp = comp.files(vec!["binding/rres_wrapper.c"]);
     }
+
+    comp = comp
+        .include("binding")
+        .warnings(false)
+        // .flag("-std=c99")
+        .extra_warnings(false);
+
+    comp.compile("rres");
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
