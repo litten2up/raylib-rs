@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use crate::{is_zero, ErrorType, ResourceChunk, ResourceMulti};
+use crate::{is_zero, ResourceChunk, ResourceMulti};
 use raylib::{
     audio::{RaylibAudio, Wave},
     models::Mesh,
@@ -116,7 +116,8 @@ pub trait RRESAudio<'a> {
     fn load_wave_from_resource(&self, chunk: ResourceChunk) -> Option<Wave<'a>>;
 }
 
-pub struct IdenticalWave<'a>(pub(crate) raylib::ffi::Wave, &'a RaylibAudio);
+#[allow(dead_code)]
+struct IdenticalWave<'a>(raylib::ffi::Wave, &'a RaylibAudio);
 
 impl<'a> RRESAudio<'a> for RaylibAudio {
     /// Load Wave data from rres resource

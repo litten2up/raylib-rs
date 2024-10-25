@@ -184,7 +184,7 @@ pub struct ResourceMulti(pub(crate) rres_sys::rresResourceMulti);
 pub struct ResourceChunkInfo(pub(crate) rres_sys::rresResourceChunkInfo);
 pub struct CentralDir(pub(crate) rres_sys::rresCentralDir);
 pub struct ResourceChunkData(pub(crate) rres_sys::rresResourceChunkData);
-pub struct FontGlyphInfo(pub(crate) rres_sys::rresFontGlyphInfo);
+pub type FontGlyphInfo = rres_sys::rresFontGlyphInfo;
 
 pub struct DirEntry(pub(crate) rres_sys::rresDirEntry);
 
