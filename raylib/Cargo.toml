@@ -20,16 +20,13 @@ serde_json = { version = "1.0.64", optional = true }
 
 mint = { version = "0.5.9", optional = true }
 
-specs-derive = { version = "0.4.1", optional = true}
+specs = { version = "0.16.1", default = false, optional = true }
+specs-derive = { version = "0.4.1", optional = true }
 thiserror = "1.0.61"
 
 [dev-dependencies]
 structopt = "0.3"
 rand = "0.8.5"
-
-[dependencies.specs]
-version = "0.16.1"
-default-features = false
 
 [features]
 nightly = []
