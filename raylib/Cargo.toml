@@ -49,89 +49,89 @@ nogif = ["raylib-sys/nogif"]
 
 [[example]]
 name = "specs"
-path = "../examples/specs.rs"
+path = "../samples/specs.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "rgui"
-path = "../examples/rgui.rs"
+path = "../samples/rgui.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "arkanoid"
-path = "../examples/arkanoid.rs"
+path = "../samples/arkanoid.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "logo"
-path = "../examples/logo.rs"
+path = "../samples/logo.rs"
 doc-scrape-examples = true
 
 
 [[example]]
 name = "camera2D"
-path = "../examples/camera2D.rs"
+path = "../samples/camera2D.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "raymarch"
-path = "../examples/raymarch.rs"
+path = "../samples/raymarch.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "font"
-path = "../examples/font.rs"
+path = "../samples/font.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "drop"
-path = "../examples/drop.rs"
+path = "../samples/drop.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "texture"
-path = "../examples/texture.rs"
+path = "../samples/texture.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "yaw_pitch_roll"
-path = "../examples/yaw_pitch_roll.rs"
+path = "../samples/yaw_pitch_roll.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "roguelike"
-path = "../examples/roguelike.rs"
+path = "../samples/roguelike.rs"
 required-features = ["with_serde"]
 doc-scrape-examples = true
 
 [[example]]
 name = "input"
-path = "../examples/input.rs"
+path = "../samples/input.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "3d_camera_first_person"
-path = "../examples/3d_camera_first_person.rs"
+path = "../samples/3d_camera_first_person.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "model_shader"
-path = "../examples/model_shader.rs"
+path = "../samples/model_shader.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "extensions"
-path = "../examples/extensions.rs"
+path = "../samples/extensions.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "asteroids"
-path = "../examples/asteroids.rs"
+path = "../samples/asteroids.rs"
 doc-scrape-examples = true
 
 [[example]]
 name = "floppy"
-path = "../examples/floppy.rs"
+path = "../samples/floppy.rs"
 doc-scrape-examples = true
 
 [package.metadata.docs.rs]
