@@ -166,6 +166,7 @@ impl Color {
     }
 
     /// Get color with alpha applied, alpha goes from 0.0f to 1.0f
+    #[deprecated = "Use Color::alpha instead"]
     pub fn fade(&self, alpha: f32) -> Self {
         unsafe { ffi::Fade(self.into(), alpha).into() }
     }
