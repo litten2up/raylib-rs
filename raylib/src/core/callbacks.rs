@@ -151,13 +151,13 @@ macro_rules! safe_callback_set_func {
 }
 
 /// Set custom trace log
-pub fn set_trace_log_callback(cb: fn(TraceLogLevel, &str)) -> Result<(), SetLogError> {
+pub fn set_trace_log_callback<'a>(cb: fn(TraceLogLevel, &str)) -> Result<(), SetLogError<'a>> {
     TRACE_LOG_CALLBACK.store(cb as usize, Ordering::Relaxed);
     unsafe { ffi::setLogCallbackWrapper() };
     Ok(())
 }
 /// Set custom file binary data saver
-pub fn set_save_file_data_callback(cb: fn(&str, &[u8]) -> bool) -> Result<(), SetLogError> {
+pub fn set_save_file_data_callback<'a>(cb: fn(&str, &[u8]) -> bool) -> Result<(), SetLogError<'a>> {
     safe_callback_set_func!(
         cb,
         SAVE_FILE_DATA_CALLBACK,
@@ -169,7 +169,7 @@ pub fn set_save_file_data_callback(cb: fn(&str, &[u8]) -> bool) -> Result<(), Se
 /// Set custom file binary data loader
 ///
 /// Whatever you return from your callback will be intentionally leaked as Raylib is relied on to free it.
-pub fn set_load_file_data_callback<'b>(cb: fn(&str) -> Vec<u8>) -> Result<(), SetLogError> {
+pub fn set_load_file_data_callback<'b>(cb: fn(&str) -> Vec<u8>) -> Result<(), SetLogError<'b>> {
     safe_callback_set_func!(
         cb,
         LOAD_FILE_DATA_CALLBACK,
@@ -179,7 +179,7 @@ pub fn set_load_file_data_callback<'b>(cb: fn(&str) -> Vec<u8>) -> Result<(), Se
     )
 }
 /// Set custom file text data saver
-pub fn set_save_file_text_callback(cb: fn(&str, &str) -> bool) -> Result<(), SetLogError> {
+pub fn set_save_file_text_callback<'a>(cb: fn(&str, &str) -> bool) -> Result<(), SetLogError<'a>> {
     safe_callback_set_func!(
         cb,
         SAVE_FILE_TEXT_CALLBACK,
@@ -191,7 +191,7 @@ pub fn set_save_file_text_callback(cb: fn(&str, &str) -> bool) -> Result<(), Set
 /// Set custom file text data loader
 ///
 /// Whatever you return from your callback will be intentionally leaked as Raylib is relied on to free it.
-pub fn set_load_file_text_callback(cb: fn(&str) -> String) -> Result<(), SetLogError> {
+pub fn set_load_file_text_callback<'a>(cb: fn(&str) -> String) -> Result<(), SetLogError<'a>> {
     safe_callback_set_func!(
         cb,
         LOAD_FILE_TEXT_CALLBACK,
