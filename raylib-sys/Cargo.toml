@@ -12,10 +12,9 @@ edition = "2018"
 exclude = ["raylib/examples/*", "raylib/projects/*", "raylib/templates/*"]
 
 [build-dependencies]
-fs_extra = "1.2"
-cmake = "0.1.49"
+cmake = "0.1.51"
 cc = "1.0"
-bindgen = "0.69.0"
+bindgen = "0.70"
 
 [features]
 default = []
@@ -30,6 +29,8 @@ opengl_33 = []
 opengl_21 = []
 # opengl_11 = [] I couldn't get this one working, the others were fine in my limited testing (unsure about wayland compatibility)
 opengl_es_20 = []
+opengl_es_30 = []
+sdl = []
 
 # Allow disabling screenshots and gifs on f12
 noscreenshot = []

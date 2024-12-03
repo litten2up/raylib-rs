@@ -82,8 +82,7 @@ fn build_with_cmake(src_path: &str) {
         .define("CMAKE_BUILD_TYPE", profile)
         // turn off until this is fixed
         .define("SUPPORT_BUSY_WAIT_LOOP", "OFF")
-        .define("SUPPORT_FILEFORMAT_JPG", "ON")
-        .define("RAYMATH_STATIC_INLINE", "ON");
+        .define("SUPPORT_FILEFORMAT_JPG", "ON");
 
     #[cfg(feature = "custom_frame_control")]
     {
@@ -114,14 +113,26 @@ fn build_with_cmake(src_path: &str) {
         // builder.define("OPENGL_VERSION", "1.1");
 
         #[cfg(feature = "opengl_es_20")]
-        builder.define("OPENGL_VERSION", "ES 2.0");
+        {
+            builder.define("OPENGL_VERSION", "ES 2.0");
+            println!("cargo:rustc-link-lib=GLESv2");
+            println!("cargo:rustc-link-lib=GLdispatch");
+        }
+
+        #[cfg(feature = "opengl_es_30")]
+        {
+            builder.define("OPENGL_VERSION", "ES 3.0");
+            println!("cargo:rustc-link-lib=GLESv2");
+            println!("cargo:rustc-link-lib=GLdispatch");
+        }
 
         // Once again felt this was necessary incase a default was changed :)
         #[cfg(not(any(
             feature = "opengl_33",
             feature = "opengl_21",
             // feature = "opengl_11",
-            feature = "opengl_es_20"
+            feature = "opengl_es_20",
+            feature = "opengl_es_30"
         )))]
         builder.define("OPENGL_VERSION", "OFF");
     }
@@ -144,11 +155,57 @@ fn build_with_cmake(src_path: &str) {
     }
 
     match platform {
-        Platform::Desktop => conf.define("PLATFORM", "Desktop"),
-        Platform::Web => conf
-            .define("PLATFORM", "Web")
-            .define("CMAKE_C_FLAGS", "-s ASYNCIFY"),
+        Platform::Desktop => {
+            #[cfg(feature = "sdl")]
+            {
+                println!("cargo:rustc-link-lib=SDL2");
+                conf.define("PLATFORM", "SDL")
+            }
+            #[cfg(not(feature = "sdl"))]
+            {
+                conf.define("PLATFORM", "Desktop")
+            }
+        }
+        Platform::Web => conf.define("PLATFORM", "Web"),
         Platform::RPI => conf.define("PLATFORM", "Raspberry Pi"),
+        Platform::Android => {
+            // get required env variables
+            let android_ndk_home = env::var("ANDROID_NDK_HOME")
+                .expect("Please set the environment variable: ANDROID_NDK_HOME:(e.g /home/u/Android/Sdk/ndk/VXXX/)");
+            let android_platform = target.split("-").last().expect("fail to parse the android version of the target triple, example:'aarch64-linux-android25'");
+            let abi_version = android_platform
+                .split("-")
+                .last()
+                .expect("Could not get abi version. Is ANDROID_PLATFORM valid?");
+            let toolchain_file =
+                format!("{}/build/cmake/android.toolchain.cmake", &android_ndk_home);
+            // Detect ANDROID_ABI using the target triple
+            let android_arch_abi = match target.as_str() {
+                "aarch64-linux-android" => "arm64-v8a",
+                "armv7-linux-androideabi" => "armeabi-v7a",
+                _ => panic!("Unsupported target triple for Android"),
+            };
+            // we'll set as many variables as possible according to:
+            // https://developer.android.com/ndk/guides/cmake#command-line_1
+            // https://cmake.org/cmake/help/v3.31/manual/cmake-toolchains.7.html#cross-compiling-for-android-with-the-ndk
+            // how to build:
+            // 0) set the correct linker in your game project's Cargo.toml (note: platform number should match):
+            // [target.aarch64-linux-android]
+            // linker = "/home/u/Android/Sdk/ndk/28.0.12433566/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android<PLATFORM_NUMBER>-clang"
+
+            // 1) set env variable ANDROID_NDK_HOME
+            // 2) compile with: `cargo ndk -t <ARCH> -p <PLATFORM_NUMBER> -o ./jniLibs build`
+            // example(cargo ndk -t arm64-v8a -p 25 -o ./jniLibs build)
+
+            conf.define("CMAKE_SYSTEM_NAME", "Android")
+                .define("PLATFORM", "Android")
+                .define("CMAKE_SYSTEM_VERSION", abi_version)
+                .define("ANDROID_ABI", android_arch_abi)
+                .define("CMAKE_ANDROID_ARCH_ABI", android_arch_abi)
+                .define("CMAKE_ANDROID_NDK", &android_ndk_home)
+                .define("ANDROID_PLATFORM", android_platform)
+                .define("CMAKE_TOOLCHAIN_FILE", &toolchain_file)
+        }
     };
 
     let dst = conf.build();
@@ -181,6 +238,15 @@ fn build_with_cmake(src_path: &str) {
     }
     // println!("cmake build {}", c.display());
     println!("cargo:rustc-link-search=native={}", dst_lib.display());
+    if platform == Platform::Android {
+        println!("cargo:rustc-link-lib=log");
+        println!("cargo:rustc-link-lib=android");
+        println!("cargo:rustc-link-lib=EGL");
+        println!("cargo:rustc-link-lib=GLESv2");
+        println!("cargo:rustc-link-lib=OpenSLES");
+        println!("cargo:rustc-link-lib=c");
+        println!("cargo:rustc-link-lib=m");
+    }
 }
 
 fn gen_bindings() {
@@ -190,6 +256,7 @@ fn gen_bindings() {
     let plat = match platform {
         Platform::Desktop => "-DPLATFORM_DESKTOP",
         Platform::RPI => "-DPLATFORM_RPI",
+        Platform::Android => "-DPLATFORM_ANDROID",
         Platform::Web => "-DPLATFORM_WEB",
     };
 
@@ -289,43 +356,41 @@ fn main() {
     println!("cargo:rerun-if-changed=./binding/binding.h");
     let target = env::var("TARGET").expect("Cargo build scripts always have TARGET");
 
-    // make sure cmake knows that it should bundle glfw in
-    if target.contains("wasm") {
+    if target.contains("wasm32-unknown-emscripten") {
         if let Err(e) = env::var("EMCC_CFLAGS") {
             if e == std::env::VarError::NotPresent {
-                panic!("\nYou must set the following environment variables yourself to compile for WASM. We are sorry for the inconvienence; this will be fixed in 5.1.0.\n{}{}\"\n",{
+                panic!("\nYou must have to set EMCC_CFLAGS yourself to compile for WASM.\n{}{}\"\n",{
                     #[cfg(target_family = "windows")]
-                    {"Paste this before executing the command: set EMCC_CFLAGS="}
+                    {"set EMCC_CFLAGS="}
                     #[cfg(not(target_family = "windows"))]
-                    {"Prefix your command with this (you may want to make a build script for obvious reasons...): EMCC_CFLAGS="}
-                },"\"-O3 -sUSE_GLFW=3 -sGL_ENABLE_GET_PROC_ADDRESS -sWASM=1 -sALLOW_MEMORY_GROWTH=1 -sWASM_MEM_MAX=512MB -sTOTAL_MEMORY=512MB -sABORTING_MALLOC=0 -sASYNCIFY -sFORCE_FILESYSTEM=1 -sASSERTIONS=1 -sERROR_ON_UNDEFINED_SYMBOLS=0 -sEXPORTED_RUNTIME_METHODS=ccallcwrap\"");
+                    {"export EMCC_CFLAGS="}
+                },"\"-O3 -sUSE_GLFW=3 -sASSERTIONS=1 -sWASM=1 -sASYNCIFY -sGL_ENABLE_GET_PROC_ADDRESS=1\"");
             } else {
                 panic!("\nError regarding EMCC_CFLAGS: {:?}\n", e);
             }
         }
     }
+
     let (platform, platform_os) = platform_from_target(&target);
 
-    // Donwload raylib source
-    let src = cp_raylib();
-    build_with_cmake(&src);
+    let raylib_src = "./raylib";
+    if is_directory_empty(raylib_src) {
+        panic!("raylib source does not exist in: `raylib-sys/raylib`. Please copy it in");
+    }
+    build_with_cmake(raylib_src);
 
     gen_bindings();
 
     link(platform, platform_os);
 }
 
-// cp_raylib copy raylib to an out dir
-fn cp_raylib() -> String {
-    let out = env::var("OUT_DIR").unwrap();
-    let out = Path::new(&out); //.join("raylib_source");
-
-    let mut options = fs_extra::dir::CopyOptions::new();
-    options.skip_exist = true;
-    fs_extra::dir::copy("raylib", out, &options)
-        .unwrap_or_else(|_| panic!("failed to copy raylib source to {}", &out.to_string_lossy()));
-
-    out.join("raylib").to_string_lossy().to_string()
+#[must_use]
+/// returns false if the directory does not exist
+fn is_directory_empty(path: &str) -> bool {
+    match std::fs::read_dir(path) {
+        Ok(mut dir) => dir.next().is_none(),
+        Err(_) => true,
+    }
 }
 
 // run_command runs a command to completion or panics. Used for running curl and powershell.
@@ -349,6 +414,8 @@ fn platform_from_target(target: &str) -> (Platform, PlatformOS) {
         Platform::Web
     } else if target.contains("armv7-unknown-linux") {
         Platform::RPI
+    } else if target.contains("android") {
+        Platform::Android
     } else {
         Platform::Desktop
     };
@@ -407,6 +474,7 @@ fn uname() -> String {
 enum Platform {
     Web,
     Desktop,
+    Android,
     RPI, // raspberry pi
 }
 
