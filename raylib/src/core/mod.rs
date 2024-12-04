@@ -68,10 +68,8 @@ impl Drop for RaylibHandle {
         unsafe {
             if ffi::IsWindowReady() {
                 ffi::CloseWindow();
-                #[cfg(feature = "imgui")]
-                {
-                    ffi::rlImGuiShutdown();
-                }
+                // NOTE(IOI_XD): If imgui is enabled, we don't call the destructor here because we're using a context that Rust expects to free, and the only other thing in that function is the free'ing of FontTexture...an action which causes a segfault. 
+                // It then gets successfully replaced if rlImGuiReloadFonts is called, so we'll take it.
             }
         }
     }
