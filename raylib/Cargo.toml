@@ -44,7 +44,6 @@ sdl = ["raylib-sys/sdl"]
 noscreenshot = ["raylib-sys/noscreenshot"]
 nogif = ["raylib-sys/nogif"]
 imgui = ["raylib-sys/imgui", "dep:imgui", "dep:imgui-sys"]
-default = ["imgui"]
 
 [[example]]
 name = "specs"
