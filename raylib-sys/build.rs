@@ -286,6 +286,7 @@ fn gen_bindings() {
     {
         builder = builder
             .clang_arg("-I./binding/imgui/decoy")
+            .clang_arg("-I./raylib/src")
             .header("binding/rlImGui/rlImGui.h");
     }
 
