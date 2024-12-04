@@ -10,6 +10,9 @@ pub mod color;
 pub mod data;
 pub mod drawing;
 pub mod error;
+pub mod file;
+#[cfg(feature = "imgui")]
+pub mod imgui;
 pub mod input;
 pub mod logging;
 pub mod math;
@@ -20,7 +23,6 @@ pub mod text;
 pub mod texture;
 pub mod vr;
 pub mod window;
-pub mod file;
 
 use raylib_sys::TraceLogLevel;
 
@@ -66,8 +68,27 @@ impl Drop for RaylibHandle {
         unsafe {
             if ffi::IsWindowReady() {
                 ffi::CloseWindow();
+                #[cfg(feature = "imgui")]
+                {
+                    ffi::rlImGuiShutdown();
+                }
             }
         }
+    }
+}
+
+/// The theme chosen for imgui integeration.
+#[cfg(feature = "imgui")]
+#[derive(Debug, PartialEq)]
+pub enum ImGuiTheme {
+    Light,
+    Dark,
+}
+
+#[cfg(feature = "imgui")]
+impl Default for ImGuiTheme {
+    fn default() -> Self {
+        Self::Dark
     }
 }
 
@@ -84,6 +105,8 @@ pub struct RaylibBuilder {
     width: i32,
     height: i32,
     title: String,
+    #[cfg(feature = "imgui")]
+    imgui_theme: ImGuiTheme,
 }
 
 /// Creates a `RaylibBuilder` for choosing window options before initialization.
@@ -163,6 +186,13 @@ impl RaylibBuilder {
         self
     }
 
+    #[cfg(feature = "imgui")]
+    /// Set the theme to be used for imgui.
+    pub fn imgui_theme(&mut self, theme: ImGuiTheme) -> &mut Self {
+        self.imgui_theme = theme;
+        self
+    }
+
     /// Builds and initializes a Raylib window.
     ///
     /// # Panics
@@ -197,7 +227,14 @@ impl RaylibBuilder {
         unsafe {
             ffi::SetTraceLogLevel(self.log_level as i32);
         }
+
         let rl = init_window(self.width, self.height, &self.title);
+
+        #[cfg(feature = "imgui")]
+        unsafe {
+            rl.init_context(self.imgui_theme == ImGuiTheme::Dark);
+        }
+
         (rl, RaylibThread(PhantomData))
     }
 }
@@ -218,6 +255,7 @@ fn init_window(width: i32, height: i32, title: &str) -> RaylibHandle {
         if !unsafe { ffi::IsWindowReady() } {
             panic!("Attempting to create window failed!");
         }
+
         RaylibHandle(())
     }
 }
