@@ -3,9 +3,7 @@
 	url = https://github.com/raysan5/raylib
 	commit = "039df36f"
 	shallow = true
-[submodule "raylib-sys/binding/--recursive"]
-	path = raylib-sys/binding/--recursive
-	url = https://github.com/cimgui/cimgui/
 [submodule "raylib-sys/binding/rlImGui"]
 	path = raylib-sys/binding/rlImGui
 	url = https://github.com/raylib-extras/rlImGui/
+	commit = "7864355"
