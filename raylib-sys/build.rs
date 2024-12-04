@@ -341,6 +341,7 @@ fn gen_imgui() {
         .define("NO_FONT_AWESOME", "1")
         .files(vec!["binding/rlImGui/rlImGui.cpp"])
         .include("binding/imgui")
+        .include("raylib/src")
         .warnings(false)
         .extra_warnings(false)
         .compile("rlImGui");
