@@ -11,8 +11,7 @@ pub mod data;
 pub mod drawing;
 pub mod error;
 pub mod file;
-#[cfg(feature = "imgui")]
-pub mod imgui;
+
 pub mod input;
 pub mod logging;
 pub mod math;
@@ -27,6 +26,7 @@ pub mod window;
 use raylib_sys::TraceLogLevel;
 
 use crate::ffi;
+use crate::imgui::init_imgui_context;
 use std::ffi::CString;
 use std::marker::PhantomData;
 
@@ -68,25 +68,10 @@ impl Drop for RaylibHandle {
         unsafe {
             if ffi::IsWindowReady() {
                 ffi::CloseWindow();
-                // NOTE(IOI_XD): If imgui is enabled, we don't call the destructor here because we're using a context that Rust expects to free, and the only other thing in that function is the free'ing of FontTexture...an action which causes a segfault. 
+                // NOTE(IOI_XD): If imgui is enabled, we don't call the destructor here because we're using a context that Rust expects to free, and the only other thing in that function is the free'ing of FontTexture...an action which causes a segfault.
                 // It then gets successfully replaced if rlImGuiReloadFonts is called, so we'll take it.
             }
         }
-    }
-}
-
-/// The theme chosen for imgui integeration.
-#[cfg(feature = "imgui")]
-#[derive(Debug, PartialEq)]
-pub enum ImGuiTheme {
-    Light,
-    Dark,
-}
-
-#[cfg(feature = "imgui")]
-impl Default for ImGuiTheme {
-    fn default() -> Self {
-        Self::Dark
     }
 }
 
@@ -104,7 +89,7 @@ pub struct RaylibBuilder {
     height: i32,
     title: String,
     #[cfg(feature = "imgui")]
-    imgui_theme: ImGuiTheme,
+    imgui_theme: crate::imgui::ImGuiTheme,
 }
 
 /// Creates a `RaylibBuilder` for choosing window options before initialization.
@@ -186,7 +171,7 @@ impl RaylibBuilder {
 
     #[cfg(feature = "imgui")]
     /// Set the theme to be used for imgui.
-    pub fn imgui_theme(&mut self, theme: ImGuiTheme) -> &mut Self {
+    pub fn imgui_theme(&mut self, theme: crate::imgui::ImGuiTheme) -> &mut Self {
         self.imgui_theme = theme;
         self
     }
@@ -230,7 +215,7 @@ impl RaylibBuilder {
 
         #[cfg(feature = "imgui")]
         unsafe {
-            rl.init_context(self.imgui_theme == ImGuiTheme::Dark);
+            init_imgui_context(self.imgui_theme == crate::imgui::ImGuiTheme::Dark);
         }
 
         (rl, RaylibThread(PhantomData))

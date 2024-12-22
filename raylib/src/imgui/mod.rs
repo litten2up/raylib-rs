@@ -19,25 +19,23 @@ fn context() -> &'static Context {
     unsafe { CONTEXT.get_or_init(|| imgui::Context::create()) }
 }
 
-impl crate::RaylibHandle {
-    /**
-       Recreation of rlImGuiSetup because imgui-rs **really** wants you to use it's own function for the imgui context.
+/**
+   Recreation of rlImGuiSetup because imgui-rs **really** wants you to use it's own function for the imgui context.
 
-       We currently use a version of rlImGui where this is actually possible, and hopefully you aren't reading this in a point of time where it's not.
-    */
-    pub(crate) unsafe fn init_context(&self, dark: bool) {
-        context();
-        if dark {
-            igStyleColorsDark(null_mut() as *mut ImGuiStyle);
-        } else {
-            igStyleColorsLight(null_mut() as *mut ImGuiStyle);
-        }
-
-        let io = igGetIO().as_ref().unwrap();
-        ImFontAtlas_AddFontDefault(io.Fonts, null());
-
-        raylib_sys::rlImGuiEndInitImGui();
+   We currently use a version of rlImGui where this is actually possible, and hopefully you aren't reading this in a point of time where it's not.
+*/
+pub(crate) unsafe fn init_imgui_context(dark: bool) {
+    context();
+    if dark {
+        igStyleColorsDark(null_mut() as *mut ImGuiStyle);
+    } else {
+        igStyleColorsLight(null_mut() as *mut ImGuiStyle);
     }
+
+    let io = igGetIO().as_ref().unwrap();
+    ImFontAtlas_AddFontDefault(io.Fonts, null());
+
+    raylib_sys::rlImGuiEndInitImGui();
 }
 
 /// The interface for rlImGui.
@@ -51,7 +49,7 @@ impl RayImGUIHandle {
             // Correct an assertion error that sometimes happens with DeltaTime.
             // We have to step into unsafe code to set the actual values that ImGui looks at
             // and not imgui-rs's custom stuff.
-            if let Some(ctx) = igGetCurrentContext().as_mut() {
+            if let Some(_ctx) = igGetCurrentContext().as_mut() {
                 if let Some(io) = igGetIO().as_mut() {
                     if io.DeltaTime <= 0.0 {
                         io.DeltaTime = 0.01;
@@ -96,20 +94,37 @@ impl DerefMut for RayImGUIHandle {
     }
 }
 
-impl RaylibDrawHandle<'_> {
+pub trait RayImGUITrait {
     /// Setup ImGUI to start drawing. Prefer using the closure version, [RaylibHandle::start_imgui]. This version returns a handle that calls [raylib_sys::rlImGuiEnd] at the end of the scope and is provided as a fallback incase you run into issues with closures(such as lifetime or performance reasons)
     ///
     /// Returns None in the specific but also common case that the delta time is negative on any frame other then 0.
-    pub fn begin_imgui(&self) -> Option<RayImGUIHandle> {
+    fn begin_imgui(&self) -> Option<RayImGUIHandle> {
         return RayImGUIHandle::new();
     }
 
     /// Setup ImGUI then call the closure with the appropriate handle.
     ///
     /// Fails silently if the delta time is negative on any frame other then 0.
-    pub fn start_imgui(&self, f: impl Fn(&mut Ui)) {
+    fn start_imgui(&self, f: impl Fn(&mut Ui)) {
         if let Some(mut new_frame) = RayImGUIHandle::new() {
             f(&mut new_frame);
         }
+    }
+}
+
+impl RayImGUITrait for RaylibDrawHandle<'_> {}
+
+/// The theme chosen for imgui integeration.
+#[cfg(feature = "imgui")]
+#[derive(Debug, PartialEq)]
+pub enum ImGuiTheme {
+    Light,
+    Dark,
+}
+
+#[cfg(feature = "imgui")]
+impl Default for ImGuiTheme {
+    fn default() -> Self {
+        Self::Dark
     }
 }
