@@ -44,6 +44,3 @@ sdl = ["raylib-sys/sdl"]
 noscreenshot = ["raylib-sys/noscreenshot"]
 nogif = ["raylib-sys/nogif"]
 imgui = ["raylib-sys/imgui", "dep:imgui", "dep:imgui-sys"]
-
-[package.metadata.docs.rs]
-cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
