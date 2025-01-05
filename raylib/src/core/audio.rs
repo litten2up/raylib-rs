@@ -4,8 +4,6 @@ use crate::error::{error, Error};
 use crate::ffi;
 use std::ffi::CString;
 use std::marker::PhantomData;
-use std::mem::ManuallyDrop;
-use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
 make_thin_wrapper_lifetime!(Wave, ffi::Wave, RaylibAudio, ffi::UnloadWave);
@@ -19,7 +17,19 @@ make_thin_wrapper_lifetime!(
     ffi::UnloadAudioStream
 );
 
-make_rslice!(WaveSamples, f32, ffi::UnloadWaveSamples);
+pub struct WaveSamples(*mut f32, usize);
+
+impl AsRef<[f32]> for WaveSamples {
+    fn as_ref(&self) -> &[f32] {
+        unsafe { std::slice::from_raw_parts(self.0, self.1) }
+    }
+}
+
+impl Drop for WaveSamples {
+    fn drop(&mut self) {
+        unsafe { ffi::UnloadWaveSamples(self.0) }
+    }
+}
 
 /// A marker trait specifying an audio sample (`u8`, `i16`, or `f32`).
 pub trait AudioSample {}
@@ -241,14 +251,10 @@ impl<'aud> Wave<'aud> {
     /// NOTE 2: Sample data allocated should be freed with UnloadWaveSamples()
     #[inline]
     pub fn load_samples(&self) -> WaveSamples {
-        let as_slice = unsafe {
-            let data = ffi::LoadWaveSamples(self.0);
-            Box::from_raw(std::slice::from_raw_parts_mut(
-                data,
-                self.frame_count() as usize,
-            ))
-        };
-        WaveSamples(ManuallyDrop::new(as_slice))
+        WaveSamples(
+            unsafe { ffi::LoadWaveSamples(self.0) },
+            self.frameCount as usize,
+        )
     }
 }
 
