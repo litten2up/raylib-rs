@@ -40,6 +40,31 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
 #[cfg(feature = "nobuild")]
 fn build_with_cmake(_src_path: &str) {}
 
+fn config_bool(b: bool) -> &'static str {
+    if b {
+        "ON"
+    } else {
+        "OFF"
+    }
+}
+
+fn opengl_version() -> Option<&'static str> {
+    // See all possible flags at https://github.com/raysan5/raylib/wiki/CMake-Build-Options
+    if cfg!(feature = "opengl_43") {
+        Some("4.3")
+    } else if cfg!(feature = "opengl_33") {
+        Some("3.3")
+    } else if cfg!(feature = "opengl_21") {
+        Some("2.1")
+    } else if cfg!(feature = "opengl_es_30") {
+        Some("ES 3.0")
+    } else if cfg!(feature = "opengl_es_20") {
+        Some("ES 2.0")
+    } else {
+        None
+    }
+}
+
 #[cfg(not(feature = "nobuild"))]
 fn build_with_cmake(src_path: &str) {
     // CMake uses different lib directories on different systems.
@@ -62,7 +87,7 @@ fn build_with_cmake(src_path: &str) {
 
     let mut conf = cmake::Config::new(src_path);
     let mut builder;
-    let mut profile = "";
+    let profile;
     #[cfg(debug_assertions)]
     {
         builder = conf.profile("Debug");
@@ -82,77 +107,27 @@ fn build_with_cmake(src_path: &str) {
         .define("CMAKE_BUILD_TYPE", profile)
         // turn off until this is fixed
         .define("SUPPORT_BUSY_WAIT_LOOP", "OFF")
-        .define("SUPPORT_FILEFORMAT_JPG", "ON");
+        .define("SUPPORT_FILEFORMAT_JPG", "ON")
+        .define("CUSTOMIZE_BUILD", "ON");
 
-    #[cfg(feature = "custom_frame_control")]
-    {
-        builder.define("SUPPORT_CUSTOM_FRAME_CONTROL", "ON");
-    }
+    builder.define(
+        "SUPPORT_CUSTOM_FRAME_CONTROL",
+        config_bool(cfg!(feature = "custom_frame_control")),
+    );
 
     // Enable wayland cmake flag if feature is specified
-    #[cfg(feature = "wayland")]
-    {
-        builder.define("USE_WAYLAND", "ON");
-        builder.define("USE_EXTERNAL_GLFW", "ON"); // Necessary for wayland support in my testing
-    }
+    builder.define("USE_WAYLAND", config_bool(cfg!(feature = "wayland")));
 
-    // This seems redundant, but I felt it was needed incase raylib changes it's default
-    #[cfg(not(feature = "wayland"))]
-    builder.define("USE_WAYLAND", "OFF");
+    #[cfg(feature = "wayland")]
+    builder.define("USE_EXTERNAL_GLFW", "ON"); // Necessary for wayland support in my testing
 
     // Scope implementing flags for forcing OpenGL version
-    // See all possible flags at https://github.com/raysan5/raylib/wiki/CMake-Build-Options
-    {
-        #[cfg(feature = "opengl_33")]
-        builder.define("OPENGL_VERSION", "3.3");
+    builder.define("OPENGL_VERSION", opengl_version().unwrap_or("OFF"));
 
-        #[cfg(feature = "opengl_21")]
-        builder.define("OPENGL_VERSION", "2.1");
+    builder.define("SUPPORT_SCREEN_CAPTURE", config_bool(cfg!(feature = "screenshot")));
+    builder.define("SUPPORT_GIF_RECORDING", config_bool(cfg!(feature = "gif")));
 
-        // #[cfg(feature = "opengl_11")]
-        // builder.define("OPENGL_VERSION", "1.1");
-
-        #[cfg(feature = "opengl_es_20")]
-        {
-            builder.define("OPENGL_VERSION", "ES 2.0");
-            println!("cargo:rustc-link-lib=GLESv2");
-            println!("cargo:rustc-link-lib=GLdispatch");
-        }
-
-        #[cfg(feature = "opengl_es_30")]
-        {
-            builder.define("OPENGL_VERSION", "ES 3.0");
-            println!("cargo:rustc-link-lib=GLESv2");
-            println!("cargo:rustc-link-lib=GLdispatch");
-        }
-
-        // Once again felt this was necessary incase a default was changed :)
-        #[cfg(not(any(
-            feature = "opengl_33",
-            feature = "opengl_21",
-            // feature = "opengl_11",
-            feature = "opengl_es_20",
-            feature = "opengl_es_30"
-        )))]
-        builder.define("OPENGL_VERSION", "OFF");
-    }
-
-    // Allows disabling the default maping of screenshot and gif recording in raylib
-    {
-        #[cfg(any(feature = "noscreenshot", feature = "nogif"))]
-        builder.define("CUSTOMIZE_BUILD", "ON");
-
-        #[cfg(feature = "noscreenshot")]
-        builder.define("SUPPORT_SCREEN_CAPTURE", "OFF");
-        #[cfg(feature = "nogif")]
-        builder.define("SUPPORT_GIF_RECORDING", "OFF");
-
-        // Once again felt this was necessary incase a default was changed :)
-        #[cfg(not(feature = "noscreenshot"))]
-        builder.define("SUPPORT_SCREEN_CAPTURE", "ON");
-        #[cfg(not(feature = "nogif"))]
-        builder.define("SUPPORT_GIF_RECORDING", "ON");
-    }
+    builder.define("USE_AUDIO", config_bool(cfg!(feature = "raudio")));
 
     match platform {
         Platform::Desktop => {
