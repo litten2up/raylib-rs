@@ -1,7 +1,9 @@
 #[macro_use]
 mod macros;
 
+#[cfg(feature = "raudio")]
 pub mod audio;
+
 pub mod automation;
 pub mod callbacks;
 pub mod camera;
