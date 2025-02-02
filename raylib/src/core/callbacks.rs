@@ -12,8 +12,9 @@ use std::{
     slice::from_raw_parts_mut,
     sync::atomic::{AtomicUsize, Ordering},
 };
-
+mod stream_processor_with_user_data_wrapper;
 use super::audio::Music;
+pub use stream_processor_with_user_data_wrapper::*;
 
 type TraceLogCallback = unsafe extern "C" fn(*mut i8, *const i8, ...);
 extern "C" {
@@ -210,6 +211,7 @@ where
 {
     rust_callback: &'a mut F,
     nb_channels: u32,
+    callback_index: Option<usize>,
 }
 
 impl<'a, F> AudioStreamProcessorCallback<'a, F>
@@ -220,6 +222,7 @@ where
         Self {
             rust_callback: closure,
             nb_channels: nb_channels_from_music,
+            callback_index: None,
         }
     }
 
@@ -227,20 +230,43 @@ where
         return self as *mut Self as *mut ::std::os::raw::c_void;
     }
 
-    unsafe extern "C" fn c_callback(
+    fn get_c_callback(
+        &mut self,
+    ) -> extern "C" fn(
+        *mut ::std::os::raw::c_void,
+        *mut ::std::os::raw::c_void,
+        ::std::os::raw::c_uint,
+    ) -> () {
+        Self::c_callback
+    }
+
+    extern "C" fn c_callback(
         user_data: *mut ::std::os::raw::c_void,
         data_ptr: *mut ::std::os::raw::c_void,
         frame_count: ::std::os::raw::c_uint,
     ) -> () {
-        let stream_processor_callback: &mut Self = user_data.cast::<Self>().as_mut().unwrap();
-        let f32_ptr = data_ptr as *mut f32;
-        let data = unsafe {
-            std::slice::from_raw_parts_mut(
-                f32_ptr,
-                frame_count as usize * stream_processor_callback.nb_channels as usize,
-            )
-        };
-        (stream_processor_callback.rust_callback)(data, stream_processor_callback.nb_channels);
+        unsafe {
+            let stream_processor_callback: &mut Self = user_data.cast::<Self>().as_mut().unwrap();
+            let f32_ptr = data_ptr as *mut f32;
+            let data = unsafe {
+                std::slice::from_raw_parts_mut(
+                    f32_ptr,
+                    frame_count as usize * stream_processor_callback.nb_channels as usize,
+                )
+            };
+            (stream_processor_callback.rust_callback)(data, stream_processor_callback.nb_channels);
+        }
+    }
+}
+
+impl<'a, F> Drop for AudioStreamProcessorCallback<'a, F>
+where
+    F: FnMut(&mut [f32], u32) -> (),
+{
+    fn drop(&mut self) {
+        if let Some(index) = self.callback_index {
+            detach_audio_stream_processor_with_user_data(index);
+        }
     }
 }
 
@@ -253,13 +279,14 @@ where
 {
     let mut stream_processor_callback =
         Box::new(AudioStreamProcessorCallback::<'a, F>::new(processor, 2));
-    unsafe {
-        crate::ffi::AttachAudioStreamProcessorWithUserData(
+    stream_processor_callback.callback_index = Some(attach_audio_stream_processor_with_user_data(
+        music.stream,
+        AudioCallbackWithUserData::new(
             stream_processor_callback.get_as_user_data(),
-            music.stream,
-            Some(AudioStreamProcessorCallback::<'a, F>::c_callback),
-        );
-    }
+            stream_processor_callback.get_c_callback(),
+        ),
+    ));
+    assert!(stream_processor_callback.callback_index.is_some());
     Box::into_pin(stream_processor_callback)
 }
 
