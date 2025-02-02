@@ -7,10 +7,13 @@ use std::{
     convert::TryInto,
     ffi::{c_char, c_int, c_void, CStr, CString},
     mem::{size_of, transmute},
+    pin::Pin,
     ptr::null_mut,
     slice::from_raw_parts_mut,
     sync::atomic::{AtomicUsize, Ordering},
 };
+
+use super::audio::Music;
 
 type TraceLogCallback = unsafe extern "C" fn(*mut i8, *const i8, ...);
 extern "C" {
@@ -199,6 +202,65 @@ pub fn set_load_file_text_callback<'a>(cb: fn(&str) -> String) -> Result<(), Set
         custom_load_file_text_callback,
         "load file text"
     )
+}
+
+pub struct AudioStreamProcessorCallback<'a, F>
+where
+    F: FnMut(&mut [f32], u32) -> (),
+{
+    rust_callback: &'a mut F,
+    nb_channels: u32,
+}
+
+impl<'a, F> AudioStreamProcessorCallback<'a, F>
+where
+    F: FnMut(&mut [f32], u32) -> (),
+{
+    fn new(closure: &'a mut F, nb_channels_from_music: u32) -> Self {
+        Self {
+            rust_callback: closure,
+            nb_channels: nb_channels_from_music,
+        }
+    }
+
+    fn get_as_user_data(&mut self) -> *mut ::std::os::raw::c_void {
+        return self as *mut Self as *mut ::std::os::raw::c_void;
+    }
+
+    unsafe extern "C" fn c_callback(
+        user_data: *mut ::std::os::raw::c_void,
+        data_ptr: *mut ::std::os::raw::c_void,
+        frame_count: ::std::os::raw::c_uint,
+    ) -> () {
+        let stream_processor_callback: &mut Self = user_data.cast::<Self>().as_mut().unwrap();
+        let f32_ptr = data_ptr as *mut f32;
+        let data = unsafe {
+            std::slice::from_raw_parts_mut(
+                f32_ptr,
+                frame_count as usize * stream_processor_callback.nb_channels as usize,
+            )
+        };
+        (stream_processor_callback.rust_callback)(data, stream_processor_callback.nb_channels);
+    }
+}
+
+pub fn attach_audio_stream_processor_to_music<'a, F>(
+    music: &'a Music<'a>,
+    processor: &'a mut F,
+) -> Pin<Box<AudioStreamProcessorCallback<'a, F>>>
+where
+    F: FnMut(&mut [f32], u32) -> () + 'static, // static because the function is executed in another thread
+{
+    let mut stream_processor_callback =
+        Box::new(AudioStreamProcessorCallback::<'a, F>::new(processor, 2));
+    unsafe {
+        crate::ffi::AttachAudioStreamProcessorWithUserData(
+            stream_processor_callback.get_as_user_data(),
+            music.stream,
+            Some(AudioStreamProcessorCallback::<'a, F>::c_callback),
+        );
+    }
+    Box::into_pin(stream_processor_callback)
 }
 
 /// Audio thread callback to request new data
