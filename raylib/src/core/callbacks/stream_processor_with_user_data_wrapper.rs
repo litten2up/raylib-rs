@@ -3,6 +3,8 @@ use paste::paste;
 use raylib_sys::{AttachAudioStreamProcessor, AudioStream};
 use std::sync::Mutex;
 
+// region: -- AudioCallbackWithUserData --
+
 type RawAudioCallbackWithUserData = extern "C" fn(
     user_data: *mut ::std::os::raw::c_void,
     data_ptr: *mut ::std::os::raw::c_void,
@@ -36,6 +38,11 @@ impl Default for AudioCallbackWithUserData {
         }
     }
 }
+
+// endregion: -- AudioCallbackWithUserData --
+
+// region: -- raw callbacks and linkage
+// raw callback and linkage to AudioCallbackWithUserData
 
 macro_rules! generate_functions {
   ( $( $n:literal ),* ) => {
@@ -109,6 +116,8 @@ generate_functions!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
 lazy_static! {
     static ref CURRENT_IDX: Mutex<usize> = Mutex::new(0);
 }
+
+// endregion: -- raw callbacks and linkage
 
 pub fn attach_audio_stream_processor_with_user_data(
     //    user_data: *mut ::std::os::raw::c_void,

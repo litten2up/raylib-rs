@@ -205,6 +205,10 @@ pub fn set_load_file_text_callback<'a>(cb: fn(&str) -> String) -> Result<(), Set
     )
 }
 
+// region: -- AudioStreamProcessorCallback --
+
+/// This struct encapsulates a rust callback
+/// and guarantees the lifetime to be long enough ('a)
 pub struct AudioStreamProcessorCallback<'a, F>
 where
     F: FnMut(&mut [f32], u32) -> (),
@@ -269,6 +273,8 @@ where
         }
     }
 }
+
+// endregion: -- AudioStreamProcessorCallback --
 
 pub fn attach_audio_stream_processor_to_music<'a, F>(
     music: &'a Music<'a>,
