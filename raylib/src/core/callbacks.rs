@@ -290,7 +290,7 @@ where
     stream_processor_callback.callback_index = Some(attach_audio_stream_processor_with_user_data(
         music.stream,
         AudioCallbackWithUserData::new(
-            stream_processor_callback.get_as_user_data(),
+            stream_processor_callback.get_as_user_data(), // pass the address of the stream_processor_callback as void*
             stream_processor_callback.get_c_callback(),
         ),
     ));
