@@ -209,6 +209,8 @@ pub fn set_load_file_text_callback<'a>(cb: fn(&str) -> String) -> Result<(), Set
 
 /// This struct encapsulates a rust callback
 /// and guarantees the lifetime to be long enough ('a)
+/// (once `get_as_user_data` is called, it the struct
+/// should not be moved again! -> use Pin<..>)
 pub struct AudioStreamProcessorCallback<'a, F>
 where
     F: FnMut(&mut [f32], u32) -> (),
