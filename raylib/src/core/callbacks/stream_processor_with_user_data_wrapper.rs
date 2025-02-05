@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use paste::paste;
 use raylib_sys::{AttachAudioStreamProcessor, AudioStream};
+use seq_macro::seq;
 use std::sync::Mutex;
 
 // region: -- AudioCallbackWithUserData --
@@ -95,9 +96,10 @@ macro_rules! generate_functions {
                           );
                       }
                       *guard = AudioCallbackWithUserData::default();
+                      return;
                   }
               )*
-              panic!("index out of bounds");
+              panic!(format!("clear_context: index {} out of bounds", index));
           }
 
           $(
@@ -106,7 +108,6 @@ macro_rules! generate_functions {
             /// a given context "slot".
             #[no_mangle]
             pub extern "C" fn [< callback_ $n >](data_ptr: *mut ::std::os::raw::c_void, frames: u32) -> () {
-              println!("raw callback $n");
               let guard = [< CLOSURE_ $n >].lock().unwrap();
               let audio_callback = &(*guard);
               if let Some(callback) = audio_callback.callback {
@@ -125,17 +126,15 @@ macro_rules! generate_functions {
                     return [< callback_ $n >];
                 }
             )*
-            panic!("index out of bounds");
+            panic!("get_callback: index out of bounds");
           }
         }
   }
 }
 
-const N: usize = 20;
-generate_functions!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
-lazy_static! {
-    static ref CURRENT_IDX: Mutex<usize> = Mutex::new(0);
-}
+seq!(I in 1..30 {
+    generate_functions!( 0#(,I)* );
+});
 
 // endregion: -- raw callbacks and linkage
 
