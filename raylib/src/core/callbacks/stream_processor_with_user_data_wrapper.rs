@@ -1,8 +1,7 @@
-use lazy_static::lazy_static;
 use paste::paste;
 use raylib_sys::{AttachAudioStreamProcessor, AudioStream};
 use seq_macro::seq;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 // region: -- AudioCallbackWithUserData --
 
@@ -60,14 +59,12 @@ impl Default for AudioCallbackWithUserData {
 
 macro_rules! generate_functions {
   ( $( $n:literal ),* ) => {
-      paste! {
-          lazy_static! {
-              $(
-                /// For each supported callback the data for our context.
-                /// (here we have N "slots" with context data)
-                static ref [< CLOSURE_ $n >]: Mutex<AudioCallbackWithUserData> = Mutex::new(AudioCallbackWithUserData::default());
-              )*
-          }
+    paste! {
+        $(
+            /// For each supported callback the data for our context.
+            /// (here we have N "slots" with context data)
+            static [< CLOSURE_ $n >]:  LazyLock<Mutex<AudioCallbackWithUserData>> = LazyLock::new(|| Mutex::new(AudioCallbackWithUserData::default()));
+        )*
 
           /// Function to set our context
           /// and returns the slot used to store the context.
