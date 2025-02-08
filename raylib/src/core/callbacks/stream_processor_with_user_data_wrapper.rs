@@ -132,6 +132,7 @@ macro_rules! generate_functions {
   }
 }
 
+// here, you can control how many callbacks are supported
 seq!(I in 1..30 {
     generate_functions!( 0#(,I)* );
 });
