@@ -61,6 +61,8 @@ pub mod consts;
 pub mod core;
 pub mod ease;
 pub mod prelude;
+
+#[cfg(feature = "raygui")]
 pub mod rgui;
 
 /// The raw, unsafe FFI binding, in case you need that escape hatch or the safe layer doesn't provide something you need.
