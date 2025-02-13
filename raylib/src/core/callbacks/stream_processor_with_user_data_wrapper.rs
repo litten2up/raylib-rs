@@ -96,7 +96,7 @@ macro_rules! generate_functions {
                       return;
                   }
               )*
-              panic!(format!("clear_context: index {} out of bounds", index));
+              panic!("clear_context: index {} out of bounds", index);
           }
 
           $(
