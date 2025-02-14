@@ -77,18 +77,6 @@ impl RaylibHandle {
         }
     }
 
-    /// Get file length in bytes.
-    ///
-    /// # Errors
-    /// This function will return an error if the supplied bytes contain an internal 0 byte. The NulError returned will contain the bytes as well as the position of the nul byte.
-    pub fn get_file_length<A>(&self, filename: A) -> i32
-    where
-        A: Into<OsString>,
-    {
-        let c_str = CString::new(filename.into().to_string_lossy().as_bytes()).unwrap();
-        unsafe { ffi::GetFileLength(c_str.as_ptr()) }
-    }
-
     /// Check if a given path is a file or a directory
     /// # Errors
     /// This function will return an error if the supplied bytes contain an internal 0 byte. The NulError returned will contain the bytes as well as the position of the nul byte.
